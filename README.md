@@ -1,3 +1,3 @@
 # Online-Judge
 
-Put client and ccn folder in /home .
+Put client and server folder in /home .
