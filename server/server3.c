@@ -10,12 +10,20 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <pthread.h>
-int compile( char compile_file[]);
-int execute( );
-int check();
-//thread_t 
-int delete( char compile_file[],int flag_compiled);
+int compile( char Compile[],char Error[],char Serve[]);
+int execute(char Serve[],char Out[]);
+int check(char Out[]);
+int delete( char Compile[],char Error[],char Serve[],char Out[]);
 void backend(int Client_d);
+char compile_file[]="add.c";
+ char error_file[]="error.txt";
+ char out_file[]="out.txt";
+ char output[]="serve";
+ char correct[]="correct answer\n";
+ char wrong[]="wrong answer\n";
+ char compile_err[]="compilation error\n";
+ pthread_t  p[10];
+int flag[10];
 #define PORT 1250
 int main()
 {   
@@ -25,7 +33,8 @@ int main()
     
     int addrlen = sizeof(address);
     int clienlen = sizeof(clientaddr);
-     
+    bzero(&flag,sizeof(flag));
+   // printf("%d\n",flag[9]);
       
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
@@ -61,16 +70,18 @@ int main()
     {
         perror("accept");
         exit(EXIT_FAILURE);
-    }
-    backend(Client_d); // code file transfer,compile,execute,
+    } 
+    int i=0;
+    
+     backend(Client_d); // code file transfer,compile,execute,
      
     }
        
 }
 
-int compile( char compile_file[])
+int compile( char Compile[],char Error[],char Serve[])
 {int pid;
-    int Error_d=creat("error.txt",0666);
+    int Error_d=creat(Error,0666);
     char error[10];
     pid=fork();
     if(pid<0)
@@ -78,14 +89,14 @@ int compile( char compile_file[])
     else if(pid==0)
     {
          dup2(Error_d,2);
-        execlp("/usr/bin/gcc","gcc",compile_file,"-o","serve",NULL);
+        execlp("/usr/bin/gcc","gcc",Compile,"-o",Serve,NULL);
     }
     else
     {   
         wait(NULL);
         //printf("%d\n",pid);
         FILE *fp;
-        fp=fopen("error.txt","r");
+        fp=fopen(Error,"r");
         if(fp==NULL)
             perror("file doesn't exist");
         if(fgets(error,10,fp)!=NULL)
@@ -100,10 +111,10 @@ int compile( char compile_file[])
     
 }
 
-int execute()
+int execute(char Serve[],char Out[])
 {int pid;
     //printf("kol\n");
-      int Out_d=creat("out.txt",0666);
+      int Out_d=creat(Out,0666);
       int Input_d=open("ip.txt",O_RDONLY);
     if((pid=fork())==0)
            {
@@ -111,25 +122,25 @@ int execute()
           
             dup2(Input_d,0);
             
-            execlp("/home/server/serve","serve",NULL);
+            execlp("/bin/bash","bash","ex",Serve,NULL);           //executes ex(bash script) which in turn executes Serve
             }
     else if(pid>0)
     { 
 
     wait(NULL);
-
+    sleep(1);
     close(Out_d);
     close(Input_d);
     return 1;
     }
 }
-int check()
+int check(char Out[])
 {// printf("hi8\n");
     FILE *Stdop_d,*Out_d;
     Stdop_d=fopen("op.txt","r");
     if(Stdop_d==NULL)
         return 0;
-    Out_d=fopen("out.txt","r");
+    Out_d=fopen(Out,"r");
    if(Out_d==NULL)
         return 0;
     char ch1,ch2;
@@ -154,11 +165,11 @@ int check()
 
 }
 
-int delete( char compile_file[],int flag_compiled)
+int delete( char Compile[],char Error[],char Serve[],char Out[])
 {int pid;
     if((pid=fork())==0)
      
-     execlp("/bin/rm","rm","error.txt",compile_file,"serve","out.txt",NULL);       
+     execlp("/bin/rm","rm",Error,Compile,Serve,Out,NULL);       
 
      else
     {wait(NULL);
@@ -170,20 +181,36 @@ int delete( char compile_file[],int flag_compiled)
 }
 
 void backend(int Client_d)
-{char compile_file[80];
-    char buffer[80];
+{
+ char buffer[80];
+ sprintf(buffer,"%d",Client_d);
+ char Compile[10];
+ char Error[10];
+ char Out[10];
+ char Serve[10];
+ strcpy(Compile,strcat(buffer,compile_file));
+ sprintf(buffer,"%d",Client_d);
+ strcpy(Error,strcat(buffer,error_file));
+ sprintf(buffer,"%d",Client_d);
+ strcpy(Out,strcat(buffer,out_file));
+ sprintf(buffer,"%d",Client_d);
+ strcpy(Serve,strcat(buffer,output));
+    
     FILE *fp;
-    read(Client_d,buffer,80);
-    strcpy(compile_file,buffer);
-    int Compile_d=creat(compile_file,0666);
+    //read(Client_d,buffer,80);
+    //strcpy(compile_file,buffer);
+    int Compile_d=creat(Compile,0666);
     int flag_compiled=1;
-    int Out_d=creat("out.txt",0666);
-     int serve=creat("serve",0666);
+    int Out_d=creat(Out,0666);
+     int serve=creat(Serve,0666);
      close(Out_d);
     close(serve);
+    
+    bzero(&buffer,sizeof(buffer));
+
     // below to store submitted code in server
     while(read(Client_d,buffer,80)>0) //is it deadlock? count? break;?using send,recv?
-        {   puts(buffer);
+        {  
             if(strcmp(buffer,"$")==0)
             break;
             write(Compile_d,buffer,strlen(buffer));
@@ -191,38 +218,43 @@ void backend(int Client_d)
             bzero(&buffer,sizeof(buffer));
             
         }
-    printf("hi\n");
+        //read(Client_d,buffer,80);
+        bzero(&buffer,sizeof(buffer));
     
-    if(compile(compile_file))
-    {execute();  
+    
+    if(compile(Compile,Error,Serve))
+    {execute(Serve,Out);  
+        
         //printf("iol");                // execute for five test cases and check with stdout
-        if(check())
-            {char correct[]="correct answer\n";
+        if(check(Out))
+            {
                write(Client_d,correct,sizeof(correct));  
 
             }
             else
             {
-                char wrong[]="wrong answer\n";
+                
                write(Client_d,wrong,sizeof(wrong));
             } 
          }
     else
         {    
-            fp=fopen("error.txt","r");
+            fp=fopen(Error,"r");
             if(fp==NULL)
                 perror("can't open file");
-        flag_compiled=0;
-        char compile_err[]="compilation error\n";
+        
+        
         write(Client_d,compile_err,sizeof(compile_err));
         while(fgets(buffer,80,fp)!=NULL)
-        write(Client_d,buffer,sizeof(buffer)); //use sizeof   
+        {write(Client_d,buffer,sizeof(buffer)); //use sizeof  
+          bzero(&buffer,sizeof(buffer));
+        } 
         fclose(fp);
     
         }
         close(Compile_d);
         //  sleep(4);
-    delete(compile_file,flag_compiled);
+    delete(Compile,Error,Serve,Out);
+       
     close(Client_d);
-
-}   
+}
