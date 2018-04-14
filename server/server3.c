@@ -9,9 +9,11 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <pthread.h>
 int compile( char compile_file[]);
 int execute( );
 int check();
+//thread_t 
 int delete( char compile_file[],int flag_compiled);
 void backend(int Client_d);
 #define PORT 1250
@@ -175,17 +177,21 @@ void backend(int Client_d)
     strcpy(compile_file,buffer);
     int Compile_d=creat(compile_file,0666);
     int flag_compiled=1;
+    int Out_d=creat("out.txt",0666);
+     int serve=creat("serve",0666);
+     close(Out_d);
+    close(serve);
     // below to store submitted code in server
     while(read(Client_d,buffer,80)>0) //is it deadlock? count? break;?using send,recv?
-        {   //puts(buffer);
-            if(buffer[strlen(buffer)-1]=='$') 
-                break;
+        {   puts(buffer);
+            if(strcmp(buffer,"$")==0)
+            break;
             write(Compile_d,buffer,strlen(buffer));
-            
-            
+            //printf("%c",buffer[strlen(buffer-1)]);
+            bzero(&buffer,sizeof(buffer));
             
         }
-    
+    printf("hi\n");
     
     if(compile(compile_file))
     {execute();  
@@ -202,10 +208,7 @@ void backend(int Client_d)
             } 
          }
     else
-        { int Out_d=creat("out.txt",0666);
-             int serve=creat("serve",0666);
-            close(Out_d);
-            close(serve);
+        {    
             fp=fopen("error.txt","r");
             if(fp==NULL)
                 perror("can't open file");
