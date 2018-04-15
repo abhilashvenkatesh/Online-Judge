@@ -113,25 +113,18 @@ int compile( char Compile[],char Error[],char Serve[])
 
 int execute(char Serve[],char Out[])
 {int pid;
-    //printf("kol\n");
-      int Out_d=creat(Out,0666);
-      int Input_d=open("ip.txt",O_RDONLY);
+    
     if((pid=fork())==0)
            {
-            dup2(Out_d,1);
-          
-            dup2(Input_d,0);
             
-            execlp("/bin/bash","bash","ex",Serve,NULL);           //executes ex(bash script) which in turn executes Serve
+            execlp("/bin/bash","bash","ex",Serve,Out,"ip.txt",NULL);
             }
     else if(pid>0)
     { 
 
     wait(NULL);
-    sleep(1);
-    close(Out_d);
-    close(Input_d);
-    return 1;
+    
+    return 0;
     }
 }
 int check(char Out[])
@@ -254,7 +247,7 @@ void backend(int Client_d)
         }
         close(Compile_d);
         //  sleep(4);
-    delete(Compile,Error,Serve,Out);
+    //delete(Compile,Error,Serve,Out);
        
     close(Client_d);
 }
