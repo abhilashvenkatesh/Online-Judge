@@ -9,10 +9,10 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <pthread.h>
+
 int compile( char Compile[],char Error[],char Serve[]);
-int execute(char Serve[],char Out[]);
-int check(char Out[]);
+int execute(char Serve[],char Out[],char ip[]);
+int check(char Out[],char op[]);
 int delete( char Compile[],char Error[],char Serve[],char Out[]);
 void backend(int Client_d);
 char compile_file[]="add.c";
@@ -22,13 +22,16 @@ char compile_file[]="add.c";
  char correct[]="correct answer\n";
  char wrong[]="wrong answer\n";
  char compile_err[]="compilation error\n";
- pthread_t  p[10];
+ char stdinput[]="ip";
+ char stdoutput[]="op";
+ char question[]="q.txt";
+ 
 int flag[10];
-#define PORT 1250
-int main()
+#define PORT 3050
+int main(int argc,char **argv)
 {   
     pid_t pid;
-    int server_fd, Client_d, valread;
+    int server_fd, Client_d, valread,opt=1;
     struct sockaddr_in address,clientaddr ;
     
     int addrlen = sizeof(address);
@@ -43,10 +46,16 @@ int main()
         exit(EXIT_FAILURE);
     }
       bzero(&address,addrlen);
+      if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                                                  &opt, sizeof(opt)))
+    {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
     // Forcefully attaching socket to the port 8080
     address.sin_family = AF_INET;
     //address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    address.sin_port = htons(PORT);
       
     // Forcefully attaching socket to the port 8080
     if (bind(server_fd, (struct sockaddr *)&address, 
@@ -89,6 +98,8 @@ int compile( char Compile[],char Error[],char Serve[])
     else if(pid==0)
     {
          dup2(Error_d,2);
+         
+
         execlp("/usr/bin/gcc","gcc",Compile,"-o",Serve,NULL);
     }
     else
@@ -103,7 +114,8 @@ int compile( char Compile[],char Error[],char Serve[])
             { 
                 fclose(fp);
                 close(Error_d);
-             return 0;}
+             return 0;
+            }
         fclose(fp);
         close(Error_d);
         return 1;
@@ -111,31 +123,35 @@ int compile( char Compile[],char Error[],char Serve[])
     
 }
 
-int execute(char Serve[],char Out[])
+int execute(char Serve[],char Out[],char ip[])
 {int pid;
     
     if((pid=fork())==0)
            {
             
-            execlp("/bin/bash","bash","ex",Serve,Out,"ip.txt",NULL);
+            execlp("/bin/bash","bash","/home/server/ex",Serve,Out,ip,NULL);
             }
     else if(pid>0)
     { 
 
     wait(NULL);
-    
+	    
     return 0;
     }
 }
-int check(char Out[])
+int check(char Out[],char op[])
 {// printf("hi8\n");
     FILE *Stdop_d,*Out_d;
-    Stdop_d=fopen("op.txt","r");
+    Stdop_d=fopen(op,"r");
     if(Stdop_d==NULL)
-        return 0;
+        {perror("not opening..");
+          return 0;
+        }
     Out_d=fopen(Out,"r");
    if(Out_d==NULL)
-        return 0;
+         {perror("not opening..");
+          return 0;
+        }
     char ch1,ch2;
     ch1 = getc(Stdop_d);
       ch2 = getc(Out_d);
@@ -148,7 +164,7 @@ int check(char Out[])
  
       fclose(Out_d);
       fclose(Stdop_d);
-
+      
       if (ch1 == ch2)
          return 1;
       else if (ch1 != ch2)
@@ -174,8 +190,18 @@ int delete( char Compile[],char Error[],char Serve[],char Out[])
 }
 
 void backend(int Client_d)
-{
+{int choice;
+  char Choice[5];
  char buffer[80];
+ bzero(&buffer,sizeof(buffer));
+ read(Client_d,Choice,80);
+ strcpy(buffer,"/home/server/");
+ strcat(buffer,Choice);
+
+if (chdir(buffer) <0)
+         {perror("directory not changed");
+ 			  exit(0);
+ 			}
  sprintf(buffer,"%d",Client_d);
  char Compile[10];
  char Error[10];
@@ -188,18 +214,27 @@ void backend(int Client_d)
  strcpy(Out,strcat(buffer,out_file));
  sprintf(buffer,"%d",Client_d);
  strcpy(Serve,strcat(buffer,output));
-    
+  
     FILE *fp;
-    //read(Client_d,buffer,80);
-    //strcpy(compile_file,buffer);
+   
+    fp=fopen(question,"r");
+     bzero(&buffer,sizeof(buffer));
+    while(fgets(buffer,80,fp)!=NULL)
+    { write(Client_d,buffer,sizeof(buffer));
+      bzero(&buffer,sizeof(buffer));
+          
+    }
+    write(Client_d,"$",1);
+    fclose(fp);
+    
+    bzero(&buffer,sizeof(buffer));
     int Compile_d=creat(Compile,0666);
     int flag_compiled=1;
     int Out_d=creat(Out,0666);
      int serve=creat(Serve,0666);
      close(Out_d);
     close(serve);
-    
-    bzero(&buffer,sizeof(buffer));
+
 
     // below to store submitted code in server
     while(read(Client_d,buffer,80)>0) //is it deadlock? count? break;?using send,recv?
@@ -207,29 +242,44 @@ void backend(int Client_d)
             if(strcmp(buffer,"$")==0)
             break;
             write(Compile_d,buffer,strlen(buffer));
-            //printf("%c",buffer[strlen(buffer-1)]);
+            
             bzero(&buffer,sizeof(buffer));
             
         }
-        //read(Client_d,buffer,80);
+        
         bzero(&buffer,sizeof(buffer));
     
     
     if(compile(Compile,Error,Serve))
-    {execute(Serve,Out);  
-        
-        //printf("iol");                // execute for five test cases and check with stdout
-        if(check(Out))
-            {
-               write(Client_d,correct,sizeof(correct));  
+    {  char ip[10]; char op[10];
+        int Correct=0,i;
+       for ( i=1;i<=5;i++)
+    	{  sprintf(ip,"%d",i);
+           strcat(ip,stdinput);
+           sprintf(op,"%d",i);
+           strcat(op,stdoutput);
+           
+    		execute(Serve,Out,ip);  
 
+        
+                 // execute for five test cases and check with stdout
+        if(check(Out,op))
+            {
+               Correct++;
             }
             else
-            {
+            { ;
                 
-               write(Client_d,wrong,sizeof(wrong));
+              break;
             } 
          }
+     
+         if (Correct==5)
+         	write(Client_d,correct,sizeof(correct));  
+         else 
+         	 write(Client_d,wrong,sizeof(wrong));
+
+       }
     else
         {    
             fp=fopen(Error,"r");
@@ -246,8 +296,12 @@ void backend(int Client_d)
     
         }
         close(Compile_d);
-        //  sleep(4);
-    //delete(Compile,Error,Serve,Out);
-       
+        
+    delete(Compile,Error,Serve,Out);
+    if (chdir("/home/server/") <0)
+         {perror("directory not changed");
+ 			  exit(0);
+ 		}
+    
     close(Client_d);
 }
