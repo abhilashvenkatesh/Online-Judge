@@ -1,3 +1,4 @@
+
 #include <signal.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -11,10 +12,10 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 
-#define PORT 1250
+#define PORT 3050
 int main(int argc,char **argv)
 {   pid_t pid;
-    int client_fd, new_socket, valread,file;
+    int client_fd, new_socket, valread,file,choice;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
      char filename[80],recvi[80],buffer[80];
@@ -22,7 +23,7 @@ int main(int argc,char **argv)
     // Creating socket file descriptor
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
     {
-        perror("socket failed");
+           perror("socket failed");
         exit(EXIT_FAILURE);
     }
      bzero(&address,addrlen);
@@ -33,15 +34,48 @@ int main(int argc,char **argv)
     address.sin_port = htons( PORT );
     inet_pton(AF_INET,argv[1],&address.sin_addr);
     connect(client_fd,(struct sockaddr*)& address,addrlen);
+    printf("list of questions:\n");
+    printf("1)Alice and Bob\n");
+    printf("2)Simple array sum\n");
+    printf("3)Simple addition\n");
+    
+    printf("4)Plus or minus  \n");
+    printf("Select your choice\n");
+    scanf("%d",&choice);
+    char Choice[5];
+    bzero(&Choice,sizeof(Choice));
+    sprintf(Choice,"%d",choice);
+    //printf("%s\n",Choice);
+    switch(choice)
+    {
+        case 1: write(client_fd,Choice,sizeof(Choice));
+                break;
+        case 2: write(client_fd,Choice,sizeof(Choice));
+                break;
+        case 3: write(client_fd,Choice,sizeof(Choice));
+                break;
+        case 4: write(client_fd,Choice,sizeof(Choice));
+                break;
 
+    }
+    int qtxt_d=creat("q.txt",0666);
+    bzero(&buffer,sizeof(buffer));
+    while (read(client_fd,buffer,80)>0)
+    {    if(strcmp(buffer,"$")==0)
+            break;
+        write(qtxt_d,buffer,strlen(buffer));
+        bzero(&buffer,sizeof(buffer));
+    }
+     
     if((pid=fork())==0)
     { file=creat("add.c",0666);
-      execlp("/usr/bin/vi","vi","add.c",NULL);         //vi editor
+      execlp("/bin/bash","bash","ki","add.c","q.txt",NULL);
     }
     else
         { wait(NULL);
         //sleep(2);
     }
+
 
             
     FILE *Compile_d=fopen("add.c","r");
@@ -55,8 +89,9 @@ int main(int argc,char **argv)
             write(client_fd,buffer,sizeof(buffer)); 
             bzero(&buffer,sizeof(buffer))  ;
         }
-        write(client_fd,"$",1);         
-        while(read(client_fd,recvi,80)!=0)              // recieve message-compile error/correct answer/wrong answer
+        write(client_fd,"$",1);
+        bzero(&recvi,sizeof(recvi));
+        while(read(client_fd,recvi,80)!=0)
            {printf("%s",recvi);
              bzero(&recvi,sizeof(recvi));}   
 
