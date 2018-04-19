@@ -15,7 +15,7 @@ int execute(char Serve[],char Out[],char ip[]);
 int check(char Out[],char op[]);
 int delete( char Compile[],char Error[],char Serve[],char Out[]);
 void backend(int Client_d);
-char compile_file[]="add.c";
+char compile_file[]="CODE.c";
  char error_file[]="error.txt";
  char out_file[]="out.txt";
  char output[]="serve";
@@ -46,8 +46,7 @@ int main(int argc,char **argv)
         exit(EXIT_FAILURE);
     }
       bzero(&address,addrlen);
-      if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                                                  &opt, sizeof(opt)))
+      if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,&opt, sizeof(opt)))
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
@@ -176,10 +175,11 @@ int check(char Out[],char op[])
 
 int delete( char Compile[],char Error[],char Serve[],char Out[])
 {int pid;
+     int er=creat("err.txt",0666);
     if((pid=fork())==0)
-     
+     { dup2(er,2);
      execlp("/bin/rm","rm",Error,Compile,Serve,Out,NULL);       
-
+      }
      else
     {wait(NULL);
      return 1;
@@ -237,9 +237,9 @@ if (chdir(buffer) <0)
 
 
     // below to store submitted code in server
-    while(read(Client_d,buffer,80)>0) //is it deadlock? count? break;?using send,recv?
+    while(read(Client_d,buffer,80)>0) //to avoid deadlock
         {  
-            if(strcmp(buffer,"$")==0)
+            if(strcmp(buffer,"$")==0) 
             break;
             write(Compile_d,buffer,strlen(buffer));
             
