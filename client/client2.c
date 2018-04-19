@@ -68,8 +68,8 @@ int main(int argc,char **argv)
     }
      
     if((pid=fork())==0)
-    { file=creat("add.c",0666);
-      execlp("/bin/bash","bash","ki","add.c","q.txt",NULL);
+    { file=creat("CODE.c",0666);
+      execlp("/bin/bash","bash","ki","CODE.c","q.txt",NULL);
     }
     else
         { wait(NULL);
@@ -78,7 +78,7 @@ int main(int argc,char **argv)
 
 
             
-    FILE *Compile_d=fopen("add.c","r");
+    FILE *Compile_d=fopen("CODE.c","r");
     if(Compile_d==NULL)
         perror("file doesn't exist");
     
