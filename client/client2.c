@@ -84,7 +84,7 @@ int main(int argc,char **argv)
     
    
     bzero(&buffer,sizeof(buffer));
-    while(fgets(buffer,80,Compile_d)!=NULL)       // code submission
+    while(fgets(buffer,80,Compile_d)!=NULL)      
         { //puts(buffer);
             write(client_fd,buffer,sizeof(buffer)); 
             bzero(&buffer,sizeof(buffer))  ;
