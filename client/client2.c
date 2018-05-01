@@ -66,8 +66,8 @@ int main(int argc,char **argv)
         write(qtxt_d,buffer,strlen(buffer));
         bzero(&buffer,sizeof(buffer));
     }
-     
-    if((pid=fork())==0)                  // opens gedit for editing code along with question display
+     // opens gedit for editing code along with question display
+    if((pid=fork())==0)                  
     { file=creat("CODE.c",0666);                            
       execlp("/bin/bash","bash","ki","CODE.c","q.txt",NULL);
     }
